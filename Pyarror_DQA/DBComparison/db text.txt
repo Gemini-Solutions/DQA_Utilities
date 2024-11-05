@@ -1,0 +1,44 @@
+CREATE TABLE public.table1 (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR,
+    value INT
+);
+
+CREATE TABLE public.table2 (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR,
+    value INT
+);
+
+-- Insert 1000 random rows into table1
+INSERT INTO public.table1 (name, value)
+SELECT
+    md5(random()::text) AS name,  -- Random name
+    (random() * 100)::INT AS value  -- Random value between 0 and 100
+FROM generate_series(1, 1000);
+
+-- Copy data from table1 to table2
+INSERT INTO public.table2 (id, name, value)
+SELECT id, name, value FROM table1;
+
+
+--Differneces
+-- Update 10 rows in table2 to create differences
+UPDATE public.table2
+SET value = value + 1
+WHERE id IN (10, 50, 100, 150, 200, 250, 300, 350, 400, 450);
+
+
+CREATE TABLE public.comparison_results (
+    column_name TEXT,
+    row_id INT,
+    table1_value TEXT,
+    table2_value TEXT
+);
+
+
+
+
+
+
+

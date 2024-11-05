@@ -1,0 +1,56 @@
+CREATE OR REPLACE PROCEDURE compare_tables_cell_by_cell(
+    table1_name TEXT,
+    table2_name TEXT,
+    key_column TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    col RECORD;
+    query TEXT;
+BEGIN
+    -- Clear previous results
+    DELETE FROM public.comparison_results;
+
+    -- Loop through each column in the first table
+    FOR col IN
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = table1_name
+        AND column_name <> key_column  -- Exclude key column
+    LOOP
+        -- Dynamic SQL to compare each row for the current column
+        query := format(
+            'INSERT INTO public.comparison_results (column_name, row_id, table1_value, table2_value)
+            SELECT %L, t1.%I, t1.%I, t2.%I
+            FROM %I t1
+            JOIN %I t2 ON t1.%I = t2.%I
+            WHERE t1.%I IS DISTINCT FROM t2.%I',
+            col.column_name,  -- %L for column name
+            key_column,       -- %I for row_id from table1
+            col.column_name,  -- %I for table1 value
+            col.column_name,  -- %I for table2 value
+            table1_name,      -- %I for table1
+            table2_name,      -- %I for table2
+            key_column,       -- %I for join key for table1
+            key_column,       -- %I for join key for table2
+            col.column_name,  -- %I for comparison value in table1
+            col.column_name   -- %I for comparison value in table2
+        );
+
+        -- Log the dynamic query for debugging
+        RAISE NOTICE 'Executing Query: %', query;
+
+        -- Execute the comparison and insert differences into comparison_results
+        EXECUTE query;
+    END LOOP;
+
+    -- Log how many rows were inserted
+    RAISE NOTICE 'Inserted % rows into comparison_results.', FOUND;
+END;
+$$;
+
+
+--CALL compare_tables_cell_by_cell('table1', 'table2', 'id');
+
+
